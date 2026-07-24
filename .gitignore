@@ -1,0 +1,84 @@
+# Environnement virtuel
+venv/
+env/
+.venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Fichiers de cache Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.coverage
+.coverage.*
+*.cover
+*.log
+
+# Notebooks
+.ipynb_checkpoints/
+*.ipynb_checkpoints/
+
+# Modèles et données lourdes (NE PAS PUSH SUR GITHUB)
+checkpoints/
+*.pth
+*.pt
+*.h5
+*.ckpt
+*.safetensors
+*.onnx
+*.pb
+*.tflite
+
+# Données (images, vidéos)
+data/
+*.jpg
+*.jpeg
+*.png
+*.gif
+*.bmp
+*.tiff
+*.mp4
+*.avi
+*.mov
+
+# Fichiers de configuration locaux
+.env
+config.local.yaml
+config.local.yml
+*.local.yaml
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# OS
+Thumbs.db
+.DS_Store
+Desktop.ini
+
+# Logs et outputs
+outputs/
+logs/
+*.log
+*.csv
+*.xlsx
+
+# Dossier Depth-Anything-V2 (optionnel, si tu veux l'ignorer)
+Depth-Anything-V2/
+
+# Fichiers de build
+dist/
+build/
+*.egg-info/
+*.egg
+MANIFEST
+
+# Jupyter Notebooks (si tu veux les versionner, enlève cette ligne)
+# *.ipynb
