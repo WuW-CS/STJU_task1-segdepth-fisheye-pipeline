@@ -51,7 +51,7 @@ def download_model():
     hf_hub_download(
         repo_id="depth-anything/Depth-Anything-V2-Metric-Hypersim-Small",
         filename="depth_anything_v2_metric_hypersim_vits.pth",
-        local_dir=str(checkpoint_dir.parent),  # Saves in Depth-Anything-V2/checkpoints/
+        local_dir=str(checkpoint_dir),  # Saves in Depth-Anything-V2/checkpoints/
         local_dir_use_symlinks=False,
     )
     

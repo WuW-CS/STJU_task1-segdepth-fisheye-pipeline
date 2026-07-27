@@ -125,17 +125,24 @@ print(f"📊 Segmentation map shape: {seg_map.shape}")
 
 fig, axes = plt.subplots(1, 3, figsize=(18, 6))
 
+#Original image
 axes[0].imshow(image_rgb)
 axes[0].set_title('Original Image')
 axes[0].axis('off')
 
-axes[1].imshow(seg_map, cmap='tab20')
+#Segmentation
+seg_plot = axes[1].imshow(seg_map, cmap='tab20')
 axes[1].set_title('Semantic Segmentation')
 axes[1].axis('off')
+plt.colorbar(seg_plot, ax=axes[1], fraction=0.046, pad=0.04)
 
-axes[2].imshow(depth_map, cmap='plasma')
+#Depth
+depth_plot = axes[2].imshow(depth_map, cmap='plasma')
 axes[2].set_title('Depth Estimation (meters)')
 axes[2].axis('off')
+cbar = plt.colorbar(depth_plot, ax=axes[2], fraction=0.046, pad=0.04)
+cbar.set_label('Depth (meters)', rotation=270, labelpad=15)
+
 
 plt.tight_layout()
 plt.savefig(str(output_dir / 'result.png'), dpi=150, bbox_inches='tight')
