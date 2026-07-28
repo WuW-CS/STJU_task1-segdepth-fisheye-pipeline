@@ -20,7 +20,7 @@ PROJECT_DIR = Path('/content/drive/MyDrive/SJTU/STJU_task1-segdepth-fisheye-pipe
 DEPTH_DIR = Path('/content/drive/MyDrive/SJTU/Depth-Anything-V2')
 
 # Test image (from Depth Anything assets)
-img_path = DEPTH_DIR / 'assets/examples/demo01.jpg'
+img_path = DEPTH_DIR / 'assets/examples/demo10.jpg'
 
 # Depth Anything checkpoint
 checkpoint_path = DEPTH_DIR / 'checkpoints/depth_anything_v2_metric_hypersim_vits.pth'
