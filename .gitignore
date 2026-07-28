@@ -81,4 +81,4 @@ build/
 MANIFEST
 
 # Jupyter Notebooks (si tu veux les versionner, enlève cette ligne)
-# *.ipynb
+# *.ipynbnotebooks/*.ipynb
