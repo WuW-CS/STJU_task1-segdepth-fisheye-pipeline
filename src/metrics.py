@@ -98,6 +98,30 @@ class SegmentationMetrics:
             'mean_iou': iou_results['miou'],
             'per_class_iou': iou_results['per_class_iou']
         }
+    @staticmethod
+    def mean_f1(y_true: np.ndarray, y_pred: np.ndarray, num_classes: int, ignore_index: int = 255) -> float:
+        """
+        Mean F1-score across classes (macro average, ignoring absent classes).
+        F1_c = 2*TP / (2*TP + FP + FN)
+        """
+        y_true_flat = y_true.flatten()
+        y_pred_flat = y_pred.flatten()
+        valid = y_true_flat != ignore_index
+        y_true_flat = y_true_flat[valid]
+        y_pred_flat = y_pred_flat[valid]
+        
+        conf_mat = confusion_matrix(y_true_flat, y_pred_flat, labels=list(range(num_classes)))
+        f1_scores = []
+        
+        for c in range(num_classes):
+            tp = conf_mat[c, c]
+            fp = conf_mat[:, c].sum() - tp
+            fn = conf_mat[c, :].sum() - tp
+            denom = 2*tp + fp + fn
+            if denom > 0:
+                f1_scores.append(2*tp / denom)
+        
+        return float(np.mean(f1_scores)) if f1_scores else 0.0
 
 
 class DepthMetrics:
@@ -143,7 +167,7 @@ class DepthMetrics:
         Returns:
             Dictionary with accuracies for thresholds: δ1, δ2, δ3.
         """
-        mask = depth_true > 0
+        mask = (depth_true > 0) & (depth_pred>0)
         if not np.any(mask):
             return {'δ1': float('nan'), 'δ2': float('nan'), 'δ3': float('nan')}
         
@@ -252,3 +276,74 @@ def print_metrics(metrics: Dict[str, Dict[str, float]], title: str = "Evaluation
     print(f"  δ2:                  {metrics['depth']['δ2']:.4f}")
     print(f"  δ3:                  {metrics['depth']['δ3']:.4f}")
     print("=" * 60)
+
+
+
+import time
+
+class InferenceTimer:
+    """Measure model inference time."""
+    
+    @staticmethod
+    def measure(model_fn, *args, n_runs=5, **kwargs) -> Dict[str, float]:
+        """
+        Run model_fn n_runs times and return timing stats.
+        
+        Args:
+            model_fn : callable — the inference function
+            n_runs   : int — number of runs for averaging
+        
+        Returns:
+            dict with mean_ms, std_ms, min_ms
+        """
+        times = []
+        for _ in range(n_runs):
+            start = time.perf_counter()
+            model_fn(*args, **kwargs)
+            end = time.perf_counter()
+            times.append((end - start) * 1000)  # convert to ms
+        
+        return {
+            'mean_ms' : round(float(np.mean(times)), 2),
+            'std_ms'  : round(float(np.std(times)),  2),
+            'min_ms'  : round(float(np.min(times)),  2),
+        }
+
+
+# ADE20K (150 classes) → Stanford 2D-3D-S (13 classes)
+# If a category is not supported, mark as -1 (unsupported)
+ADE20K_TO_STANFORD = {
+    # ADE20K_id : Stanford_id
+    0  : 1,   # wall → wall
+    3  : 2,   # floor → floor
+    5  : 3,   # ceiling → ceiling
+    6  : 4,   # bed → furniture
+    7  : 5,   # windowpane → window
+    14 : 6,   # door → door
+    15 : 7,   # table → table
+    18 : 8,   # curtain → furniture
+    19 : 9,   # chair → chair
+    23 : 10,  # sofa → sofa
+    25 : 11,  # shelf → bookcase
+    33 : 12,  # column → column
+    67 : 13,  # beam → beam
+    # All others → -1 (unsupported, will be ignored in metrics)
+}
+
+def map_labels(pred: np.ndarray, label_map: dict, ignore_index: int = 255) -> np.ndarray:
+    """
+    Remap predicted label indices using label_map.
+    Unsupported classes → ignore_index.
+    
+    Args:
+        pred      : np.ndarray (H, W) — predicted labels (ADE20K indices)
+        label_map : dict {source_id: target_id}
+        ignore_index : int — value assigned to unsupported classes
+    
+    Returns:
+        remapped : np.ndarray (H, W)
+    """
+    remapped = np.full_like(pred, fill_value=ignore_index)
+    for src, tgt in label_map.items():
+        remapped[pred == src] = tgt
+    return remapped
