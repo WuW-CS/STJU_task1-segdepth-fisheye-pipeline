@@ -17,7 +17,7 @@ from transformers import (
 
 class BaseSegmentationModel:
     """
-    Abstract base class — all segmentation models implement predict().
+    Abstract base class: all segmentation models implement predict().
     """
     def __init__(self, device=None):
         self.device = device or (
