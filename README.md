@@ -11,7 +11,7 @@ Supervised by Prof. Chong Han and PhD Zitong Fang.
 
 This repository contains the benchmarking pipeline for Task 1 of Project 178 (THz ISAC). The goal is to evaluate open-source pretrained models for **semantic segmentation** and **metric depth estimation** on indoor 360° equirectangular panoramas, as a first step toward multi-modal environment reconstruction fusing panoramic vision with THz sensing data (Task 2).
 
-All models are evaluated **zero-shot** (no fine-tuning) on the [Stanford 2D-3D-Semantics](http://3dsemantics.stanford.edu/) dataset, and qualitatively on 15 real-world panoramas captured at the SJTU lab with a QooCam 8K camera.
+All models are evaluated **zero-shot** (except UniFuse) on the [Stanford 2D-3D-Semantics](http://3dsemantics.stanford.edu/) dataset, and qualitatively on 15 real-world panoramas captured at the SJTU lab with a QooCam 8K camera.
 
 ---
 
