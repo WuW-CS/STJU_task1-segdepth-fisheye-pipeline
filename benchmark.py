@@ -68,7 +68,7 @@ ADE20K_TO_STANFORD = {
 SEG_MODELS = ['segformer_b2', 'segformer_b4', 'mask2former']
 
 # Depth models to benchmark
-DEPTH_MODELS = ['da2_small', 'da2_base', 'da2_large', 'zoedepth']
+DEPTH_MODELS = ['da2_small', 'da2_base', 'da2_large', 'unifuse']
 
 
 def load_label_map(json_path: Path):
@@ -130,13 +130,9 @@ def load_stanford_sample(rgb_path: Path, gt_path: Path, task: str):
     elif task == 'depth':
         gt_pil = PILImage.open(str(gt_path))
         gt_img = np.array(gt_pil, dtype=np.float32)
-        gt_img[gt_img >= 65535] = 0  # invalides
-        gt = gt_img / 1000.0  # mm → metres
-        valid_mask = gt > 0
-        gt_resized = cv2.resize(gt, (2048, 1024), interpolation=cv2.INTER_LINEAR)
-        mask_resized = cv2.resize(valid_mask.astype(np.float32), (2048, 1024), interpolation=cv2.INTER_LINEAR)
-        gt_resized[mask_resized < 0.5] = 0  # Put to 0 invalids pixels
-        gt = gt_resized
+        gt_img[gt_img >= 65535] = 0  # not valid
+        gt_img_resized = cv2.resize(gt_img,(2048,1024),interpolation = cv2.INTER_NEAREST)
+        gt = gt_img_resized/1000.0
 
     return image_bgr, gt
 
@@ -323,8 +319,10 @@ def run_depth_benchmark(data_dir: Path, output_dir: Path,
                     (gt_depth.shape[1], gt_depth.shape[0]),
                     interpolation=cv2.INTER_LINEAR
                 )
-
-            m = DepthMetrics.compute_all_metrics(gt_depth, pred_depth)
+            if model_name == 'unifuse':
+                m = DepthMetrics.compute_all_metrics(gt_depth, pred_depth, median_align=True)
+            else:
+                m = DepthMetrics.compute_all_metrics(gt_depth, pred_depth, median_align=False)
             all_absrel.append(m['abs_rel'])
             all_rmse.append(m['rmse'])
             all_d1.append(m['δ1'])

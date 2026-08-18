@@ -3,9 +3,11 @@
 visualize_real_images.py
 Generate qualitative visualizations for real-world images.
 FIX: ADE20K predictions are mapped to Stanford labels before colorization.
+Layout: panels are placed side by side first (PER_ROW per row), then wrap.
 """
 
 import argparse
+import math
 from pathlib import Path
 import sys
 
@@ -18,6 +20,8 @@ import matplotlib.patches as mpatches
 sys.path.append(str(Path(__file__).parent))
 from models.depth import get_depth_model
 from models.segmentation import get_segmentation_model
+
+PER_ROW = 4  # nb de panneaux côte à côte avant de changer de ligne
 
 # ── Stanford colormap (RGB) ──
 STANFORD_COLORS = np.array([
@@ -86,18 +90,8 @@ def colorize_segmentation(seg: np.ndarray) -> np.ndarray:
     return color
 
 
-def add_legend(ax, names=STANFORD_NAMES, colors=STANFORD_COLORS):
-    """Add a compact legend to the right of the axis."""
-    # Only show classes that actually appear in the image
-    patches = []
-    for i, (c, n) in enumerate(zip(colors, names)):
-        patches.append(mpatches.Patch(color=c / 255.0, label=f"{i}: {n}"))
-    ax.legend(handles=patches, loc='center left', bbox_to_anchor=(1.02, 0.5),
-              fontsize=6, frameon=False)
-
-
 def process_one_image(rgb_path: Path, out_dir: Path, device):
-    """Run all models on one image and save a multi-panel figure."""
+    """Run all models on one image and save a multi-panel figure (grid layout)."""
     img_bgr = cv2.imread(str(rgb_path))
     if img_bgr is None:
         print(f"  [SKIP] Cannot read {rgb_path}")
@@ -132,40 +126,43 @@ def process_one_image(rgb_path: Path, out_dir: Path, device):
     seg_preds = {}
     for name, model in seg_models.items():
         print(f"    Seg: {name}...")
-        pred_ade = model.predict(img_rgb)           # ADE20K indices
-        pred_stanford = map_ade20k_to_stanford(pred_ade)  # ← FIX: map to Stanford
+        pred_ade = model.predict(img_rgb)                     # ADE20K indices
+        pred_stanford = map_ade20k_to_stanford(pred_ade)      # ← FIX: map to Stanford
         seg_preds[name] = pred_stanford
         del model
         torch.cuda.empty_cache()
 
-    # ── Plot ──
-    n_depth = len(depth_preds)
-    n_seg = len(seg_preds)
-    n_rows = 1 + n_depth + n_seg
-    fig, axes = plt.subplots(n_rows, 1, figsize=(14, 3.5 * n_rows))
+    # ── Plot : grille, côte à côte d'abord, puis ligne suivante ──
+    panels = [(img_rgb, f"Input: {rgb_path.name}")]
+    for name, pred in depth_preds.items():
+        panels.append((colorize_depth(pred),
+                       f"Depth — {name}  (min={pred.min():.2f}, max={pred.max():.2f}, mean={pred.mean():.2f})"))
+    for name, pred in seg_preds.items():
+        panels.append((colorize_segmentation(pred), f"Segmentation — {name}"))
 
-    if n_rows == 1:
-        axes = [axes]
+    n = len(panels)
+    n_rows = math.ceil(n / PER_ROW)
+    fig, axes = plt.subplots(n_rows, PER_ROW, figsize=(5.5 * PER_ROW, 3.4 * n_rows))
+    axes = np.array(axes).reshape(n_rows, PER_ROW)
 
-    # Row 0: RGB
-    axes[0].imshow(img_rgb)
-    axes[0].set_title(f"Input: {rgb_path.name}", fontsize=10)
-    axes[0].axis('off')
+    for idx, (im, title) in enumerate(panels):
+        r, c = divmod(idx, PER_ROW)
+        axes[r, c].imshow(im)
+        axes[r, c].set_title(title, fontsize=9)
+        axes[r, c].axis('off')
 
-    # Rows 1..n_depth: Depth predictions
-    for i, (name, pred) in enumerate(depth_preds.items(), start=1):
-        axes[i].imshow(colorize_depth(pred))
-        axes[i].set_title(
-            f"Depth — {name}  (min={pred.min():.2f}, max={pred.max():.2f}, mean={pred.mean():.2f})",
-            fontsize=9)
-        axes[i].axis('off')
+    # Masquer les cases vides de la dernière ligne
+    for idx in range(n, n_rows * PER_ROW):
+        r, c = divmod(idx, PER_ROW)
+        axes[r, c].axis('off')
 
-    # Rows after depth: Segmentation predictions (NOW CORRECTLY MAPPED)
-    for i, (name, pred) in enumerate(seg_preds.items(), start=1 + n_depth):
-        axes[i].imshow(colorize_segmentation(pred))
-        axes[i].set_title(f"Segmentation — {name}", fontsize=9)
-        axes[i].axis('off')
-        add_legend(axes[i])
+    # Légende unique pour toute la figure (à droite), classes présentes seulement
+    present = set(int(v) for pred in seg_preds.values() for v in np.unique(pred))
+    patches = [mpatches.Patch(color=STANFORD_COLORS[i] / 255.0, label=f"{i}: {STANFORD_NAMES[i]}")
+               for i in sorted(present)]
+    if patches:
+        fig.legend(handles=patches, loc='center left', bbox_to_anchor=(1.01, 0.5),
+                   fontsize=7, frameon=False)
 
     plt.tight_layout()
     out_path = out_dir / f"{rgb_path.stem}_viz.png"
@@ -177,7 +174,7 @@ def process_one_image(rgb_path: Path, out_dir: Path, device):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--input_dir',  type=str, default='/home/william/data/validation/')
-    parser.add_argument('--output_dir', type=str, default='/home/william/outputs_real/')
+    parser.add_argument('--output_dir', type=str, default='/home/william/')
     args = parser.parse_args()
 
     input_dir = Path(args.input_dir)
@@ -191,9 +188,11 @@ def main():
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print(f"Found {len(image_paths)} images. Device: {device}\n")
 
-    for p in image_paths:
-        print(f"Processing {p.name}...")
-        process_one_image(p, output_dir, device)
+    # for p in image_paths:
+    #     print(f"Processing {p.name}...")
+    #     process_one_image(p, output_dir, device)
+    print(f"Processing {image_paths[5].name}...")
+    process_one_image(image_paths[5],output_dir,device)
 
     print(f"\n🎉 All visualizations saved to {output_dir}")
 

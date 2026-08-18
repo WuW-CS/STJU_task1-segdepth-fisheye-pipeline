@@ -134,36 +134,52 @@ class DepthMetrics:
     """
     
     @staticmethod
-    def abs_relative_error(depth_true: np.ndarray, depth_pred: np.ndarray) -> float:
+    def abs_relative_error(depth_true: np.ndarray, depth_pred: np.ndarray,median_align: bool = False) -> float:
         """Absolute Relative Error: |d_true - d_pred| / d_true."""
         mask = depth_true > 0
         if not np.any(mask):
             return float('nan')
-        return np.mean(np.abs(depth_true[mask] - depth_pred[mask]) / depth_true[mask])
-    
+        gt = depth_true[mask]
+        pred = depth_pred[mask]
+        
+        if median_align:
+            pred = pred * (np.median(gt) / np.median(pred))
+        
+        return np.mean(np.abs(gt - pred) / gt)
+        
     @staticmethod
-    def rmse(depth_true: np.ndarray, depth_pred: np.ndarray) -> float:
+    def rmse(depth_true: np.ndarray, depth_pred: np.ndarray,median_align: bool = False) -> float:
         """Root Mean Square Error."""
         mask = depth_true > 0
         if not np.any(mask):
             return float('nan')
-        diff = depth_true[mask] - depth_pred[mask]
+        gt = depth_true[mask]
+        pred = depth_pred[mask]
+        if median_align:
+             pred = pred * (np.median(gt) / np.median(pred))
+
+        diff = gt - pred
         return np.sqrt(np.mean(diff ** 2))
     
     @staticmethod
-    def rmse_log(depth_true: np.ndarray, depth_pred: np.ndarray) -> float:
+    def rmse_log(depth_true: np.ndarray, depth_pred: np.ndarray,median_align: bool = False) -> float:
         """RMSE in log space."""
         mask = depth_true > 0
         if not np.any(mask):
             return float('nan')
-        log_diff = np.log(depth_true[mask] + 1e-8) - np.log(depth_pred[mask] + 1e-8)
+        gt = depth_true[mask]
+        pred = depth_pred[mask]
+        if median_align:
+            pred = pred * (np.median(gt) / np.median(pred))        
+        log_diff = np.log(gt + 1e-8) - np.log(pred + 1e-8)
         return np.sqrt(np.mean(log_diff ** 2))
     
     @staticmethod
     def threshold_accuracy(
         depth_true: np.ndarray,
         depth_pred: np.ndarray,
-        threshold: float = 1.25
+        threshold: float = 1.25,
+        median_align: bool = False
     ) -> Dict[str, float]:
         """
         Threshold accuracy: % of pixels where max(d_true/d_pred, d_pred/d_true) < threshold.
@@ -177,6 +193,9 @@ class DepthMetrics:
         
         depth_true_masked = depth_true[mask]
         depth_pred_masked = depth_pred[mask]
+
+        if median_align:
+            depth_pred_masked = depth_pred_masked * (np.median(depth_true_masked) / np.median(depth_pred_masked))  
         
         ratio = np.maximum(
             depth_true_masked / (depth_pred_masked + 1e-8),
@@ -192,15 +211,16 @@ class DepthMetrics:
     @staticmethod
     def compute_all_metrics(
         depth_true: np.ndarray,
-        depth_pred: np.ndarray
+        depth_pred: np.ndarray,
+        median_align: bool = False
     ) -> Dict[str, float]:
         """
         Compute all depth metrics.
         """
-        abs_rel = DepthMetrics.abs_relative_error(depth_true, depth_pred)
-        rmse_val = DepthMetrics.rmse(depth_true, depth_pred)
-        rmse_log_val = DepthMetrics.rmse_log(depth_true, depth_pred)
-        threshold_vals = DepthMetrics.threshold_accuracy(depth_true, depth_pred)
+        abs_rel = DepthMetrics.abs_relative_error(depth_true, depth_pred,median_align)
+        rmse_val = DepthMetrics.rmse(depth_true, depth_pred, median_align)
+        rmse_log_val = DepthMetrics.rmse_log(depth_true, depth_pred, median_align)
+        threshold_vals = DepthMetrics.threshold_accuracy(depth_true, depth_pred, median_align)
         
         return {
             'abs_rel': abs_rel,
