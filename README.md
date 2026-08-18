@@ -3,7 +3,7 @@ Developping a Joint semantic segmentation and depth estimation on fisheye panora
 
 ---
 
-**See server_code_v2 README for the last version!
+# See server_code_v2 README for the last version!
 
 
 **Joint Semantic Segmentation and Monocular Depth Estimation on Fisheye Images**
